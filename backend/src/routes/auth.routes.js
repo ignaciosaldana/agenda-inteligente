@@ -2,11 +2,14 @@ console.log('AUTH ROUTES LOADED');
 import express from 'express';
 import bcrypt from 'bcrypt';
 import pool from '../config/db.js';
+
 const router = express.Router();
 
 router.get('/ping', (req, res) => {
   res.json({ pong: true });
 });
+
+/* ================= REGISTER ================= */
 
 router.post('/register', async (req, res) => {
   try {
@@ -23,7 +26,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Missing fields' });
     }
 
-    // 1️⃣ Crear negocio
     const [businessResult] = await pool.query(
       'INSERT INTO businesses (name, email, plan_id) VALUES (?, ?, ?)',
       [business_name, business_email, plan_id]
@@ -31,10 +33,8 @@ router.post('/register', async (req, res) => {
 
     const businessId = businessResult.insertId;
 
-    // 2️⃣ Hash contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3️⃣ Crear usuario admin
     await pool.query(
       'INSERT INTO users (business_id, name, email, password) VALUES (?, ?, ?, ?)',
       [businessId, name, email, hashedPassword]
@@ -42,6 +42,49 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       message: 'Business and admin user created successfully'
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ================= LOGIN ================= */
+
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Missing fields' });
+    }
+
+    const [users] = await pool.query(
+      'SELECT * FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const user = users[0];
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        business_id: user.business_id
+      }
     });
 
   } catch (error) {
