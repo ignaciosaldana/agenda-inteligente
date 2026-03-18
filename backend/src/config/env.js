@@ -1,0 +1,1 @@
+export const JWT_SECRET = "oneagend_super_secret:2026";

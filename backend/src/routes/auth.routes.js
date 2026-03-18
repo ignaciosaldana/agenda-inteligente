@@ -1,11 +1,13 @@
 console.log('AUTH ROUTES LOADED');
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET} from '../config/env.js';
 import express from 'express';
 import bcrypt from 'bcrypt';
 import pool from '../config/db.js';
 
 const router = express.Router();
 
-router.get('/ping', (req, res) => {
+router.get('/ping', (req, res) => { 
   res.json({ pong: true });
 });
 
@@ -77,16 +79,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    res.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        business_id: user.business_id
-      }
-    });
+    const token = jwt.sign(
+  {
+    id: user.id,
+    business_id: user.business_id
+  },
+  JWT_SECRET,
+  { expiresIn: '2h' }
+);
 
+res.json({
+  message: 'Login successful',
+  token
+});
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
